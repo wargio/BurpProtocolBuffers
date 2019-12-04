@@ -46,7 +46,7 @@ public class BurpExtender implements IBurpExtender, IMessageEditorTabFactory {
 
         @Override
         public boolean isEnabled(byte[] content, boolean isRequest) {
-            return true;
+            return content != null && content.length > 0;
         }
 
         @Override
