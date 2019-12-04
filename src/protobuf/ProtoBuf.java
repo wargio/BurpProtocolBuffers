@@ -23,8 +23,6 @@
  */
 package protobuf;
 
-import protobuf.Leb128;
-
 public class ProtoBuf {
 
     static private final byte WIRE_VARINT /*   */ = 0; // int32, int64, uint32, uint64, sint32, sint64, bool, enum
@@ -36,12 +34,38 @@ public class ProtoBuf {
 
     private static class Head {
 
+        public byte u8;
         public byte wire;
         public byte number;
 
         public void parse(final byte b) {
+            this.u8 = b;
             this.wire = ((byte) (b & 0x3));
-            this.number = ((byte) (b >>> 3));
+            this.number = (byte) ((b & 0xFF) >> 3);
+        }
+
+        @Override
+        public String toString() {
+            return "[" + Integer.toHexString(u8 & 0xFF) + "]";
+        }
+
+        public String wireName() {
+            switch (wire) {
+                case WIRE_VARINT:
+                    return "[VARINT]";
+                case WIRE_64_BIT:
+                    return "[64_BIT]";
+                case WIRE_LEN_DELIM:
+                    return "[LEN_DELIM]";
+                case WIRE_START_GRP:
+                    return "[START_GROUP]";
+                case WIRE_END_GRP:
+                    return "[END_GROUP]";
+                case WIRE_32_BIT:
+                    return "[32_BIT]";
+                default:
+                    return "[UNKN]";
+            }
         }
     }
 
@@ -51,10 +75,10 @@ public class ProtoBuf {
 
     private static String parseString(byte[] data, int start, int end) throws Exception {
         String s = "";
-        for (int i = 0; i < data.length; i++) {
+        for (int i = start; i < data.length && i < end; i++) {
             byte b = data[i];
             if (b < 0x20 || b > 0x7E) {
-                throw new Exception("Not a string");
+                throw new Exception("Not a string: " + Integer.toHexString(b & 0xFF) + " at " + i);
             }
             s += (char) b;
         }
@@ -80,12 +104,12 @@ public class ProtoBuf {
         int bytes_read = 0;
         for (int i = start; i < end;) {
             h.parse(data[i]);
-            if (h.wire > WIRE_32_BIT) {
+            i++;
+            if (h.wire > WIRE_32_BIT /*|| i >= end*/) {
                 throw new Exception("Invalid wire code: " + Byte.toString(h.wire));
             }
-            i++;
             if (h.wire != WIRE_END_GRP) {
-                decoded += pad(padcnt) + " " + h.number;
+                decoded += pad(padcnt) + h.number;
             }
             switch (h.wire) {
                 case ProtoBuf.WIRE_VARINT: {
@@ -104,15 +128,19 @@ public class ProtoBuf {
                     Leb128 l = Leb128.parse32(data, i, data.length);
                     int ps = i + l.length;
                     int pe = ps + l.s32;
-                    if (ps > i && pe < end) {
+                    if (ps > i && pe <= end) {
                         try {
-                            decoded += parseString(data, ps, pe);
+                            decoded += ": \"" + parseString(data, ps, pe) + "\"\n";
                         } catch (Exception e) {
                             decoded += " {\n";
                             decoded += decodeBuffer(data, ps, pe, padcnt + 1);
                             decoded += pad(padcnt) + "}\n";
                         }
+                        bytes_read = l.length + l.s32;
+                    } else {
+                        throw new Exception("Invalid length: " + l.toString() + " ps:" + ps + " pe:" + pe + " i:" + i + " end:" + end);
                     }
+                    break;
                 }
                 case ProtoBuf.WIRE_START_GRP:
                     decoded += " {\n";
@@ -140,6 +168,6 @@ public class ProtoBuf {
     }
 
     public static String decode(byte[] data, int offset) throws Exception {
-        return decodeBuffer(data, offset, data.length, 0);
+        return decodeBuffer(data, offset, data.length, 0).trim();
     }
 }

@@ -21,9 +21,6 @@ public class BurpExtender implements IBurpExtender, IMessageEditorTabFactory {
         return new ProtoBufTab(controller, false);
     }
 
-    //
-    // class implementing IMessageEditorTab
-    //
     class ProtoBufTab implements IMessageEditorTab {
 
         private final ITextEditor txtInput;
@@ -49,12 +46,21 @@ public class BurpExtender implements IBurpExtender, IMessageEditorTabFactory {
             return content != null && content.length > 0;
         }
 
+        private int findBody(byte[] content) {
+            for (int i = 0; i < (content.length - 4); i++) {
+                if (content[i] == 0xD && content[i + 1] == 0xA && content[i + 2] == 0xD && content[i + 3] == 0xA) {
+                    return i + 4;
+                }
+            }
+            return content.length;
+        }
+
         @Override
         public void setMessage(byte[] content, boolean isRequest) {
             if (content == null) {
                 txtInput.setText(null);
             } else {
-                String s = "Not a protocol buffers.";
+                String s;
                 try {
                     int offset = isRequest
                             ? helpers.analyzeRequest(content).getBodyOffset()
@@ -62,11 +68,10 @@ public class BurpExtender implements IBurpExtender, IMessageEditorTabFactory {
                     s = ProtoBuf.decode(content, offset);
                 } catch (Exception e) {
                     e.printStackTrace(System.err);
+                    s = e.getMessage();
                 }
                 txtInput.setText(s.getBytes());
             }
-
-            // remember the displayed content
             currentMessage = content;
         }
 

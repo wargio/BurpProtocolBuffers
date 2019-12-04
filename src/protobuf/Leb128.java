@@ -104,4 +104,9 @@ public final class Leb128 {
 
         return new Leb128(result, Double.longBitsToDouble(result), count);
     }
+    
+    @Override
+    public String toString() {
+        return "[s64: " + s64 + ", s32:" + s32 + ", f32:" + f32 + ", f64:" + f64 + ", length:" + length + "]";
+    }
 }
