@@ -46,16 +46,7 @@ public class BurpExtender implements IBurpExtender, IMessageEditorTabFactory {
 
         @Override
         public boolean isEnabled(byte[] content, boolean isRequest) {
-            try {
-                int offset = isRequest
-                        ? helpers.analyzeRequest(content).getBodyOffset()
-                        : helpers.analyzeResponse(content).getBodyOffset();
-                ProtoBuf.decode(content, offset);
-                return true;
-            } catch (Exception e) {
-                e.printStackTrace(System.err);
-            }
-            return false;
+            return true;
         }
 
         @Override
